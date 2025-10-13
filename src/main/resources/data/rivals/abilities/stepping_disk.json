@@ -1,0 +1,43 @@
+{
+  "custom_ability": "chainable",
+  "ability_chain": [
+    {
+      "ability": {
+        "ability_type": "rivals:cosmetic_effect",
+        "ability_attributes": {
+          "effect": "rivals:test_effect"
+        }
+      }
+    },
+    {
+      "ability": {
+        "ability_type": "rivals:delay",
+        "ability_attributes": {
+          "delay_duration": 10
+        }
+      }
+    },
+    {
+      "ability_chain": [
+        {
+          "ability": {
+            "ability_type": "rivals:dash",
+            "ability_attributes": {
+              "dash_distance": 10.0,
+              "dash_type": "blink"
+            }
+          }
+        },
+        {
+          "ability": {
+            "ability_type": "rivals:cosmetic_effect",
+            "ability_attributes": {
+              "effect": "rivals:test_effect",
+              "delay_duration": 10
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

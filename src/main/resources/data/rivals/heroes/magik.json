@@ -1,0 +1,20 @@
+{
+  "name": "Magik",
+  "health": 30,
+  "defense": 2,
+  "safe_fall_distance": 8,
+  "abilities": [
+    {
+      "ability_name": "Stepping Disk",
+      "ability_trigger": {
+        "type": "keybind",
+        "key": "key.rivals.primary"
+      },
+      "ability": {
+        "ability_type": "rivals:custom_ability",
+        "ability_path": "abilities/stepping_disk.json"
+      },
+      "ability_cooldown": 120
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Captain America",
+  "health": 50,
+  "abilities": [
+    {
+      "ability_type": "rivals:example_ability"
+    }
+  ]
+}
