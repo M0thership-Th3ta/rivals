@@ -1,5 +1,6 @@
 {
   "name": "Magik",
+  "color": 16509827,
   "health": 30,
   "defense": 2,
   "safe_fall_distance": 8,

@@ -1,6 +1,13 @@
 {
+
+  "creativetab.rivals.hero_souls": "Hero Souls",
+
+  "curios.identifier.soul": "Soul Slot",
+
   "key.categories.rivals": "Rivals",
   "key.rivals.primary": "Primary Ability",
   "key.rivals.secondary": "Secondary Ability",
-  "key.rivals.tertiary": "Tertiary Ability"
+  "key.rivals.tertiary": "Tertiary Ability",
+
+  "item.rivals.hero_soul": "Hero's Soul"
 }

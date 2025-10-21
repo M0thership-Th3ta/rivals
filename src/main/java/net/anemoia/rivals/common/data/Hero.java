@@ -7,6 +7,7 @@ import java.util.Map;
 
 public class Hero {
     private String name;
+    private int color;
     private int health;
     private int defense;
     @SerializedName("safe_fall_distance")
@@ -14,6 +15,7 @@ public class Hero {
     private List<Ability> abilities;
 
     public String getName() { return name; }
+    public int getColor() { return color; }
     public int getHealth() { return health; }
     public int getDefense() { return defense; }
     public int getSafeFallDistance() { return safeFallDistance; }

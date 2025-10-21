@@ -5,6 +5,8 @@ import net.anemoia.rivals.client.RivalsKeybinds;
 import net.anemoia.rivals.common.commands.HeroCommand;
 import net.anemoia.rivals.common.data.HeroDataManager;
 import net.anemoia.rivals.common.network.NetworkHandler;
+import net.anemoia.rivals.core.registry.ModCreativeModeTabs;
+import net.anemoia.rivals.core.registry.ModItems;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -29,6 +31,9 @@ public class Rivals
 
     public Rivals(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
+
+        ModItems.register(modEventBus);
+        ModCreativeModeTabs.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);

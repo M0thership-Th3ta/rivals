@@ -1,5 +1,6 @@
 {
   "name": "Captain America",
+  "color": 3371753,
   "health": 50,
   "abilities": [
     {
