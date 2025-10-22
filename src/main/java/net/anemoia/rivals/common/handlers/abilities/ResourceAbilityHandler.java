@@ -20,6 +20,11 @@ public class ResourceAbilityHandler {
         CompoundTag playerData = player.getPersistentData();
         CompoundTag resourceData = playerData.getCompound(NBT_KEY);
 
+        // Only initialize if not already present
+        if (resourceData.contains(abilityName)) {
+            return;
+        }
+
         CompoundTag abilityData = new CompoundTag();
         abilityData.putInt("charges", maxCharges);
         abilityData.putInt("maxCharges", maxCharges);
@@ -71,11 +76,7 @@ public class ResourceAbilityHandler {
         if (currentCharges > 0) {
             abilityData.putInt("charges", currentCharges - 1);
             abilityData.putInt("cooldownTicks", cooldownTicks);
-
-            long currentTime = System.currentTimeMillis();
-            // Always set nextRechargeTime when a charge is consumed
-            long rechargeTime = currentTime + (cooldownTicks * 50);
-            abilityData.putLong("nextRechargeTime", rechargeTime);
+            abilityData.putInt("ticksUntilRecharge", cooldownTicks);
 
             resourceData.put(abilityName, abilityData);
             playerData.put(NBT_KEY, resourceData);
@@ -91,31 +92,28 @@ public class ResourceAbilityHandler {
         CompoundTag playerData = player.getPersistentData();
         CompoundTag resourceData = playerData.getCompound(NBT_KEY);
 
-        long currentTime = System.currentTimeMillis();
         boolean dataChanged = false;
 
         for (String abilityName : resourceData.getAllKeys()) {
             CompoundTag abilityData = resourceData.getCompound(abilityName);
-            long nextRechargeTime = abilityData.getLong("nextRechargeTime");
             int charges = abilityData.getInt("charges");
             int maxCharges = abilityData.getInt("maxCharges");
             int cooldownTicks = abilityData.getInt("cooldownTicks");
+            int ticksUntilRecharge = abilityData.getInt("ticksUntilRecharge");
 
-            if (charges < maxCharges && nextRechargeTime > 0 && currentTime >= nextRechargeTime) {
-                charges++;
-                abilityData.putInt("charges", charges);
+            if (charges < maxCharges && ticksUntilRecharge > 0) {
+                ticksUntilRecharge--;
+                abilityData.putInt("ticksUntilRecharge", ticksUntilRecharge);
 
-                if (charges < maxCharges) {
-                    long nextRecharge = currentTime + (cooldownTicks * 50);
-                    abilityData.putLong("nextRechargeTime", nextRecharge);
-                } else {
-                    abilityData.putLong("nextRechargeTime", 0);
+                if (ticksUntilRecharge == 0) {
+                    charges++;
+                    abilityData.putInt("charges", charges);
+                    if (charges < maxCharges) {
+                        abilityData.putInt("ticksUntilRecharge", cooldownTicks);
+                    }
                 }
-
                 resourceData.put(abilityName, abilityData);
                 dataChanged = true;
-
-                LOGGER.debug("Recharged {} - charges: {}/{}", abilityName, charges, maxCharges);
             }
         }
 

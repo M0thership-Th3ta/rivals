@@ -1,5 +1,6 @@
 package net.anemoia.rivals.common.handlers.abilities;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
@@ -71,6 +72,30 @@ public class AbilityCooldown {
         return cooldowns.get(abilityName);
     }
 
+    public static void saveCooldownsToNBT(Player player) {
+        UUID playerId = player.getUUID();
+        Map<String, Long> cooldowns = playerCooldowns.get(playerId);
+        if (cooldowns == null) return;
+
+        CompoundTag tag = player.getPersistentData();
+        CompoundTag cooldownTag = new CompoundTag();
+        for (Map.Entry<String, Long> entry : cooldowns.entrySet()) {
+            cooldownTag.putLong(entry.getKey(), entry.getValue());
+        }
+        tag.put("rivals_ability_cooldowns", cooldownTag);
+    }
+
+    public static void loadCooldownsFromNBT(Player player) {
+        CompoundTag tag = player.getPersistentData();
+        if (!tag.contains("rivals_ability_cooldowns")) return;
+
+        CompoundTag cooldownTag = tag.getCompound("rivals_ability_cooldowns");
+        Map<String, Long> cooldowns = new HashMap<>();
+        for (String key : cooldownTag.getAllKeys()) {
+            cooldowns.put(key, cooldownTag.getLong(key));
+        }
+        playerCooldowns.put(player.getUUID(), cooldowns);
+    }
 
     public static void clearPlayerCooldowns(Player player) {
         playerCooldowns.remove(player.getUUID());

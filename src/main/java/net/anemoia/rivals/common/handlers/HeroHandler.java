@@ -6,6 +6,7 @@ import net.anemoia.rivals.common.handlers.abilities.AbilityCooldown;
 import net.anemoia.rivals.common.handlers.abilities.ResourceAbilityHandler;
 import net.anemoia.rivals.common.handlers.attributes.HeroHealthHandler;
 import net.anemoia.rivals.common.util.PlayerHeroUtil;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
@@ -25,14 +26,15 @@ public class HeroHandler {
 
         // Store the current hero
         PlayerHeroUtil.setCurrentHero(player, heroId);
-
-        // Apply all hero properties
         HeroHealthHandler.applyHeroHealth(player, heroId);
         AbilityReader.applyAbilities(player, hero);
         ResourceAbilityHandler.syncChargeData(player);
         // Future handlers can be added here:
         // HeroSpeedHandler.applySpeed(player, heroId);
         // HeroAnimationHandler.applyAnimations(player, heroId);
+        CompoundTag resourceData = player.getPersistentData().getCompound("rivals_resource_ability");
+        LOGGER.info("Charge NBT after hero apply: {}", resourceData);
+
         LOGGER.info("Successfully applied hero {} to player {}", hero.getName(), player.getName().getString());
     }
 

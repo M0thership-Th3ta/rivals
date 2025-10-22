@@ -239,14 +239,6 @@ public class AbilityHudRenderer {
             int textX = slotX + SLOT_SIZE - Minecraft.getInstance().font.width(chargeText) - 2;
             int textY = slotY + SLOT_SIZE - 10;
 
-            // Add a small dark background circle for better readability
-            int textWidth = Minecraft.getInstance().font.width(chargeText);
-            int bgSize = Math.max(textWidth + 2, 8);
-            int bgX = textX + (textWidth / 2) - (bgSize / 2);
-            int bgY = textY - 1;
-
-            guiGraphics.fill(bgX, bgY, bgX + bgSize, bgY + bgSize, 0xC0000000);
-
             // Use different colors based on charge availability
             int textColor = currentCharges > 0 ? 0xFFFFFF : 0xFF5555;
             guiGraphics.drawString(Minecraft.getInstance().font, chargeText, textX, textY, textColor, true);
