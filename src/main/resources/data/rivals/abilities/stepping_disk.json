@@ -12,6 +12,15 @@
     },
     {
       "ability": {
+        "ability_type": "rivals:view",
+        "ability_attributes": {
+            "view_type": "third_person_back",
+            "view_locked": true
+        }
+      }
+    },
+    {
+      "ability": {
         "ability_type": "rivals:cosmetic_effect",
         "ability_attributes": {
           "effect": "rivals:test_effect"
@@ -48,6 +57,15 @@
           }
         }
       ]
+    },
+    {
+      "ability": {
+        "ability_type": "rivals:view",
+        "ability_attributes": {
+          "view_type": "first_person",
+          "view_locked": false
+        }
+      }
     }
   ]
 }

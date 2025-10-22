@@ -36,6 +36,11 @@ public class NetworkHandler {
                 .encoder(ChargeSyncPacket::toBytes)
                 .consumerMainThread(ChargeSyncPacket::handle)
                 .add();
+        INSTANCE.messageBuilder(ViewAbilityPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(ViewAbilityPacket::new)
+                .encoder(ViewAbilityPacket::toBytes)
+                .consumerMainThread(ViewAbilityPacket::handle)
+                .add();
     }
 
     public static <MSG> void sendToServer(MSG message) {

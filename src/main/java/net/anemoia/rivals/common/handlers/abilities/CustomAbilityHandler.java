@@ -160,24 +160,23 @@ public class CustomAbilityHandler {
                 player.getName().getString());
 
         switch (abilityType) {
-            case "rivals:resource":
-                handleResourceAbility(player, attributes);
-                callback.run();
-                break;
-
             case "rivals:cosmetic_effect":
                 handleCosmeticEffectWithCallback(player, attributes, callback);
                 break;
-
-            case "rivals:delay":
-                handleDelayAbility(player, attributes, callback);
-                break;
-
             case "rivals:dash":
                 DashAbilityHandler.handleDashAbility(player, attributes);
                 callback.run();
                 break;
-
+            case "rivals:delay":
+                handleDelayAbility(player, attributes, callback);
+                break;
+            case "rivals:resource":
+                handleResourceAbility(player, attributes);
+                callback.run();
+                break;
+            case "rivals:view":
+                ViewAbilityHandler.handleViewAbility(player, attributes, callback);
+                break;
             default:
                 LOGGER.warn("Unknown ability type in chain: {}", abilityType);
                 callback.run();
