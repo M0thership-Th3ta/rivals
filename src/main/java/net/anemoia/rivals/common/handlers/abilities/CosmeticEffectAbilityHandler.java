@@ -24,15 +24,14 @@ public class CosmeticEffectAbilityHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CosmeticEffectAbilityHandler.class);
     private static final Map<UUID, DelayedEffect> delayedEffects = new HashMap<>();
 
-    public static void handleCosmeticEffect(Player player, Hero.Ability ability) {
-        Map<String, Object> attributes = ability.getAbility().getAbilityAttributes();
-        if (attributes == null) return;
+    public static void handleCosmeticEffect(Player player, Map<String, Object> abilityData) {
+        if (abilityData == null) return;
 
         LOGGER.info("Executing cosmetic effect for player {} with attributes: {}",
-                player.getName().getString(), attributes);
+                player.getName().getString(), abilityData);
 
-        String effect = (String) attributes.get("effect");
-        Number delayDurationObj = (Number) attributes.get("delay_duration");
+        String effect = (String) abilityData.get("effect");
+        Number delayDurationObj = (Number) abilityData.get("delay_duration");
 
         if (delayDurationObj != null && delayDurationObj.intValue() > 0) {
             int delayDuration = delayDurationObj.intValue();
@@ -57,6 +56,7 @@ public class CosmeticEffectAbilityHandler {
             executeEffect(player, effect);
         }
     }
+
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {

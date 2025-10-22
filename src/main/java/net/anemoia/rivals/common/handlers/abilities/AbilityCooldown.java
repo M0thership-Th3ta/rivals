@@ -60,6 +60,17 @@ public class AbilityCooldown {
         return Math.max(0, (cooldownEnd - currentTime) / 50); // Convert back to ticks
     }
 
+    public static long getCooldownEndTime(Player player, String abilityName) {
+        UUID playerId = player.getUUID();
+        Map<String, Long> cooldowns = playerCooldowns.get(playerId);
+
+        if (cooldowns == null || !cooldowns.containsKey(abilityName)) {
+            return 0L;
+        }
+
+        return cooldowns.get(abilityName);
+    }
+
 
     public static void clearPlayerCooldowns(Player player) {
         playerCooldowns.remove(player.getUUID());

@@ -2,8 +2,10 @@ package net.anemoia.rivals.common.network;
 
 import net.anemoia.rivals.Rivals;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public class NetworkHandler {
@@ -23,9 +25,24 @@ public class NetworkHandler {
                 .encoder(AbilityTriggerPacket::toBytes)
                 .consumerMainThread(AbilityTriggerPacket::handle)
                 .add();
+
+        INSTANCE.messageBuilder(HeroSyncPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(HeroSyncPacket::new)
+                .encoder(HeroSyncPacket::toBytes)
+                .consumerMainThread(HeroSyncPacket::handle)
+                .add();
+        INSTANCE.messageBuilder(ChargeSyncPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(ChargeSyncPacket::new)
+                .encoder(ChargeSyncPacket::toBytes)
+                .consumerMainThread(ChargeSyncPacket::handle)
+                .add();
     }
 
     public static <MSG> void sendToServer(MSG message) {
         INSTANCE.sendToServer(message);
+    }
+
+    public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
+        INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), message);
     }
 }

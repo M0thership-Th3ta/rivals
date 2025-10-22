@@ -18,15 +18,34 @@ import java.util.Map;
 public class DashAbilityHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(DashAbilityHandler.class);
 
-    public static void handleDashAbility(Player player, Hero.Ability ability) {
-        Map<String, Object> attributes = ability.getAbility().getAbilityAttributes();
-        if (attributes == null) return;
+    public static void handleDashAbility(Player player, Map<String, Object> abilityData) {
+        if (abilityData == null) return;
 
         LOGGER.info("Executing dash ability for player {} with attributes: {}",
-                player.getName().getString(), attributes);
+                player.getName().getString(), abilityData);
 
-        String dashType = (String) attributes.get("dash_type");
-        Number dashDistanceObj = (Number) attributes.get("dash_distance");
+        // For abilities in chains, charges are already consumed at the top level
+        // Just validate we have the required resource cost but don't consume it again
+        Object resourceCostObj = abilityData.get("resource_cost");
+        if (resourceCostObj != null) {
+            int resourceCost = ((Number) resourceCostObj).intValue();
+            Hero.Ability originalAbility = CustomAbilityHandler.getCurrentAbilityContext(player);
+
+            if (originalAbility != null) {
+                String originalAbilityName = originalAbility.getAbilityName();
+                int availableCharges = ResourceAbilityHandler.getCharges(player, originalAbilityName);
+
+                // This is just a safety check - charges should already be consumed
+                if (availableCharges < 0) {
+                    LOGGER.warn("Insufficient charges for dash ability {} (cost: {}, available: {})",
+                            originalAbilityName, resourceCost, availableCharges);
+                    return;
+                }
+            }
+        }
+
+        String dashType = (String) abilityData.get("dash_type");
+        Number dashDistanceObj = (Number) abilityData.get("dash_distance");
 
         if (dashType == null || dashDistanceObj == null) {
             LOGGER.warn("Dash ability missing dash_type or dash_distance for player {}",
@@ -43,6 +62,11 @@ public class DashAbilityHandler {
             default:
                 LOGGER.warn("Unknown dash type: {} for player {}", dashType, player.getName().getString());
         }
+    }
+
+    public static void handleDashAbility(Player player, Hero.Ability ability) {
+        Map<String, Object> attributes = ability.getAbility().getAbilityAttributes();
+        handleDashAbility(player, attributes);
     }
 
     private static void performBlinkDash(Player player, double distance) {

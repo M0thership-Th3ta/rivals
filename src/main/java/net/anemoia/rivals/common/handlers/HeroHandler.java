@@ -3,6 +3,7 @@ package net.anemoia.rivals.common.handlers;
 import net.anemoia.rivals.common.data.Hero;
 import net.anemoia.rivals.common.data.HeroDataManager;
 import net.anemoia.rivals.common.handlers.abilities.AbilityCooldown;
+import net.anemoia.rivals.common.handlers.abilities.ResourceAbilityHandler;
 import net.anemoia.rivals.common.handlers.attributes.HeroHealthHandler;
 import net.anemoia.rivals.common.util.PlayerHeroUtil;
 import net.minecraft.resources.ResourceLocation;
@@ -28,6 +29,7 @@ public class HeroHandler {
         // Apply all hero properties
         HeroHealthHandler.applyHeroHealth(player, heroId);
         AbilityReader.applyAbilities(player, hero);
+        ResourceAbilityHandler.syncChargeData(player);
         // Future handlers can be added here:
         // HeroSpeedHandler.applySpeed(player, heroId);
         // HeroAnimationHandler.applyAnimations(player, heroId);

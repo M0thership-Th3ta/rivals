@@ -1,178 +1,272 @@
 package net.anemoia.rivals.common.handlers.abilities;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import net.anemoia.rivals.common.data.Hero;
 import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 public class CustomAbilityHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomAbilityHandler.class);
-    private static final Gson GSON = new Gson();
+    private static final Map<Player, Hero.Ability> currentAbilityContext = new HashMap<>();
 
     public static void applyCustomAbility(Player player, Hero.Ability ability, Object customAbilityData) {
-        LOGGER.info("Applying custom ability {} to player {}",
-                ability.getAbilityName(), player.getName().getString());
-
         if (!(customAbilityData instanceof Map)) {
-            LOGGER.error("Custom ability data is not a valid JSON object");
+            LOGGER.warn("Custom ability data is not a map for ability {}", ability.getAbilityName());
             return;
         }
 
         @SuppressWarnings("unchecked")
         Map<String, Object> abilityMap = (Map<String, Object>) customAbilityData;
 
-        String customAbilityType = (String) abilityMap.get("custom_ability");
+        currentAbilityContext.put(player, ability);
+        AbilityExecutionState.setPlayerExecuting(player, true);
 
+        String customAbilityType = (String) abilityMap.get("custom_ability");
         if ("chainable".equals(customAbilityType)) {
-            handleChainableAbility(player, abilityMap);
+            // Find resource initialization in the chain
+            int resourceAmount = 0;
+            Object abilityChainObj = abilityMap.get("ability_chain");
+            if (abilityChainObj instanceof List) {
+                List<Object> abilityChain = (List<Object>) abilityChainObj;
+                for (Object chainElement : abilityChain) {
+                    if (chainElement instanceof Map) {
+                        Map<String, Object> elementMap = (Map<String, Object>) chainElement;
+                        if (elementMap.containsKey("ability")) {
+                            Map<String, Object> abilityData = (Map<String, Object>) elementMap.get("ability");
+                            if ("rivals:resource".equals(abilityData.get("ability_type"))) {
+                                Map<String, Object> attributes = (Map<String, Object>) abilityData.get("ability_attributes");
+                                if (attributes != null && "charge".equals(attributes.get("resource_type"))) {
+                                    Number amountObj = (Number) attributes.get("resource_amount");
+                                    if (amountObj != null) {
+                                        resourceAmount = amountObj.intValue();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Only initialize charges if not already set
+            if (resourceAmount > 0) {
+                String abilityName = ability.getAbilityName();
+                if (ResourceAbilityHandler.getMaxCharges(player, abilityName) == 0) {
+                    ResourceAbilityHandler.initializeCharges(player, abilityName, resourceAmount);
+                }
+                // Only check for >0 charges and consume ONE charge per use
+                if (!ResourceAbilityHandler.hasCharges(player, abilityName)) {
+                    ResourceAbilityHandler.sendNoChargesMessage(player, abilityName);
+                    AbilityExecutionState.setPlayerExecuting(player, false);
+                    currentAbilityContext.remove(player);
+                    return;
+                }
+                if (!ResourceAbilityHandler.consumeCharge(player, abilityName, ability.getAbilityCooldown())) {
+                    ResourceAbilityHandler.sendNoChargesMessage(player, abilityName);
+                    AbilityExecutionState.setPlayerExecuting(player, false);
+                    currentAbilityContext.remove(player);
+                    return;
+                }
+            }
+            handleChainableAbility(player, abilityMap, () -> {
+                AbilityExecutionState.setPlayerExecuting(player, false);
+                currentAbilityContext.remove(player);
+            });
         } else {
             LOGGER.warn("Unknown custom ability type: {}", customAbilityType);
+            AbilityExecutionState.setPlayerExecuting(player, false);
+            currentAbilityContext.remove(player);
         }
     }
 
     public static void removeCustomAbility(Player player, Hero.Ability ability) {
-        LOGGER.info("Removing custom ability {} from player {}",
-                ability.getAbilityName(), player.getName().getString());
+        LOGGER.info("Removing custom ability {} from player {}", ability.getAbilityName(), player.getName().getString());
+        currentAbilityContext.remove(player);
+    }
+
+    public static Hero.Ability getCurrentAbilityContext(Player player) {
+        return currentAbilityContext.get(player);
     }
 
     @SuppressWarnings("unchecked")
-    private static void handleChainableAbility(Player player, Map<String, Object> abilityData) {
+    private static void handleChainableAbility(Player player, Map<String, Object> abilityData, Runnable onComplete) {
         Object abilityChainObj = abilityData.get("ability_chain");
 
         if (!(abilityChainObj instanceof List)) {
-            LOGGER.error("ability_chain is not a valid list");
+            LOGGER.warn("Chainable ability missing ability_chain for player {}",
+                    player.getName().getString());
+            onComplete.run();
             return;
         }
 
         List<Object> abilityChain = (List<Object>) abilityChainObj;
-        executeAbilityChainSequential(player, abilityChain, 0);
+        LOGGER.info("Executing chainable ability with {} elements for player {}",
+                abilityChain.size(), player.getName().getString());
+
+        executeAbilityChain(player, abilityChain, 0, onComplete);
     }
 
     @SuppressWarnings("unchecked")
-    private static void executeAbilityChainSequential(Player player, List<Object> abilityChain, int index) {
-        if (index >= abilityChain.size()) return;
+    private static void executeAbilityChain(Player player, List<Object> abilityChain, int currentIndex, Runnable onComplete) {
+        if (currentIndex >= abilityChain.size()) {
+            LOGGER.debug("Ability chain execution completed for player {}",
+                    player.getName().getString());
+            onComplete.run();
+            return;
+        }
 
-        Object chainElement = abilityChain.get(index);
+        Object chainElement = abilityChain.get(currentIndex);
 
         if (!(chainElement instanceof Map)) {
-            LOGGER.error("Chain element {} is not a valid object", index);
-            executeAbilityChainSequential(player, abilityChain, index + 1);
+            LOGGER.warn("Invalid chain element at index {} for player {}",
+                    currentIndex, player.getName().getString());
+            executeAbilityChain(player, abilityChain, currentIndex + 1, onComplete);
             return;
         }
 
         Map<String, Object> elementMap = (Map<String, Object>) chainElement;
 
-        if (elementMap.containsKey("ability_chain")) {
-            LOGGER.debug("Executing nested ability chain in parallel");
-            Object nestedChainObj = elementMap.get("ability_chain");
-
-            if (nestedChainObj instanceof List) {
-                List<Object> nestedChain = (List<Object>) nestedChainObj;
-                executeParallelAbilities(player, nestedChain);
-            }
-            // Continue to next element immediately for parallel chains
-            executeAbilityChainSequential(player, abilityChain, index + 1);
-
-        } else if (elementMap.containsKey("ability")) {
-            executeAbilityElementWithCallback(player, elementMap, () -> {
-                // Continue to next element after this one completes
-                executeAbilityChainSequential(player, abilityChain, index + 1);
-            });
+        if (elementMap.containsKey("ability")) {
+            Map<String, Object> abilityData = (Map<String, Object>) elementMap.get("ability");
+            executeChainElement(player, abilityData, () ->
+                    executeAbilityChain(player, abilityChain, currentIndex + 1, onComplete));
+        } else if (elementMap.containsKey("ability_chain")) {
+            List<Object> nestedChain = (List<Object>) elementMap.get("ability_chain");
+            executeAbilityChain(player, nestedChain, 0, () ->
+                    executeAbilityChain(player, abilityChain, currentIndex + 1, onComplete));
         } else {
-            LOGGER.warn("Chain element {} contains neither 'ability' nor 'ability_chain'", index);
-            executeAbilityChainSequential(player, abilityChain, index + 1);
+            LOGGER.warn("Chain element missing 'ability' or 'ability_chain' for player {}",
+                    player.getName().getString());
+            executeAbilityChain(player, abilityChain, currentIndex + 1, onComplete);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static void executeParallelAbilities(Player player, List<Object> abilities) {
-        for (Object abilityObj : abilities) {
-            if (!(abilityObj instanceof Map)) {
-                LOGGER.error("Parallel ability element is not a valid object");
-                continue;
-            }
-
-            Map<String, Object> abilityMap = (Map<String, Object>) abilityObj;
-
-            CompletableFuture.runAsync(() -> {
-                executeAbilityElementWithCallback(player, abilityMap, null);
-            });
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void executeAbilityElementWithCallback(Player player, Map<String, Object> elementMap, Runnable callback) {
-        Object abilityObj = elementMap.get("ability");
-
-        if (!(abilityObj instanceof Map)) {
-            LOGGER.error("Ability element is not a valid object");
-            if (callback != null) callback.run();
-            return;
-        }
-
-        Map<String, Object> abilityData = (Map<String, Object>) abilityObj;
+    private static void executeChainElement(Player player, Map<String, Object> abilityData, Runnable callback) {
         String abilityType = (String) abilityData.get("ability_type");
+        Map<String, Object> attributes = (Map<String, Object>) abilityData.get("ability_attributes");
 
         if (abilityType == null) {
-            LOGGER.error("Ability missing ability_type");
-            if (callback != null) callback.run();
+            LOGGER.warn("Chain element missing ability_type for player {}",
+                    player.getName().getString());
+            callback.run();
             return;
         }
 
-        Hero.Ability tempAbility = createTempAbility(elementMap, abilityData);
+        LOGGER.debug("Executing chain element {} for player {}", abilityType,
+                player.getName().getString());
 
-        // Route to appropriate handler based on ability type
         switch (abilityType) {
+            case "rivals:resource":
+                handleResourceAbility(player, attributes);
+                callback.run();
+                break;
+
             case "rivals:cosmetic_effect":
-                CosmeticEffectAbilityHandler.handleCosmeticEffect(player, tempAbility);
-                if (callback != null) callback.run();
+                handleCosmeticEffectWithCallback(player, attributes, callback);
                 break;
+
             case "rivals:delay":
-                DelayAbilityHandler.handleDelayAbility(player, tempAbility, callback);
+                handleDelayAbility(player, attributes, callback);
                 break;
+
             case "rivals:dash":
-                DashAbilityHandler.handleDashAbility(player, tempAbility);
-                if (callback != null) callback.run();
+                DashAbilityHandler.handleDashAbility(player, attributes);
+                callback.run();
                 break;
-            case "rivals:flight":
-                FlightHandler.handleFlightAbility(player, tempAbility);
-                if (callback != null) callback.run();
-                break;
+
             default:
                 LOGGER.warn("Unknown ability type in chain: {}", abilityType);
-                if (callback != null) callback.run();
+                callback.run();
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static Hero.Ability createTempAbility(Map<String, Object> elementMap, Map<String, Object> abilityData) {
-        JsonObject tempAbilityJson = new JsonObject();
-
-        if (elementMap.containsKey("ability_name")) {
-            tempAbilityJson.addProperty("ability_name", (String) elementMap.get("ability_name"));
+    private static void handleResourceAbility(Player player, Map<String, Object> abilityData) {
+        if (abilityData == null) {
+            LOGGER.warn("Resource ability has null attributes for player {}", player.getName().getString());
+            return;
         }
 
-        if (elementMap.containsKey("ability_trigger")) {
-            JsonElement triggerElement = GSON.toJsonTree(elementMap.get("ability_trigger"));
-            tempAbilityJson.add("ability_trigger", triggerElement);
+        String resourceType = (String) abilityData.get("resource_type");
+        Number resourceAmountObj = (Number) abilityData.get("resource_amount");
+
+        if (resourceType == null || resourceAmountObj == null) {
+            LOGGER.warn("Resource ability missing required attributes for player {}", player.getName().getString());
+            return;
         }
 
-        if (elementMap.containsKey("ability_cooldown")) {
-            Number cooldown = (Number) elementMap.get("ability_cooldown");
-            tempAbilityJson.addProperty("ability_cooldown", cooldown.intValue());
+        int resourceAmount = resourceAmountObj.intValue();
+
+        LOGGER.info("Executing resource ability for player {} with type {} and amount {}",
+                player.getName().getString(), resourceType, resourceAmount);
+
+        if ("charge".equals(resourceType)) {
+            Hero.Ability currentAbility = getCurrentAbilityContext(player);
+            if (currentAbility != null) {
+                String abilityName = currentAbility.getAbilityName();
+                // Only initialize if not already set
+                if (ResourceAbilityHandler.getMaxCharges(player, abilityName) == 0) {
+                    ResourceAbilityHandler.initializeCharges(player, abilityName, resourceAmount);
+                    LOGGER.debug("Initialized {} charges for ability {}", resourceAmount, abilityName);
+                }
+            } else {
+                LOGGER.warn("No current ability context for resource initialization");
+            }
+        }
+    }
+
+    private static void handleCosmeticEffectWithCallback(Player player, Map<String, Object> abilityData, Runnable callback) {
+        if (abilityData == null) {
+            callback.run();
+            return;
         }
 
-        JsonElement abilityElement = GSON.toJsonTree(abilityData);
-        tempAbilityJson.add("ability", abilityElement);
+        Number delayDurationObj = (Number) abilityData.get("delay_duration");
 
-        return GSON.fromJson(tempAbilityJson, Hero.Ability.class);
+        if (delayDurationObj != null && delayDurationObj.intValue() > 0) {
+            int delayDuration = delayDurationObj.intValue();
+
+            // Execute the cosmetic effect first
+            CosmeticEffectAbilityHandler.handleCosmeticEffect(player, abilityData);
+
+            // Then schedule the callback after the delay
+            DelayAbilityHandler.scheduleDelayedExecution(player, delayDuration, callback);
+        } else {
+            // No delay, execute effect and continue immediately
+            CosmeticEffectAbilityHandler.handleCosmeticEffect(player, abilityData);
+            callback.run();
+        }
+    }
+
+    private static void handleDelayAbility(Player player, Map<String, Object> abilityData, Runnable callback) {
+        if (abilityData == null) {
+            callback.run();
+            return;
+        }
+
+        Number delayDurationObj = (Number) abilityData.get("delay_duration");
+
+        if (delayDurationObj == null) {
+            LOGGER.warn("Delay ability missing delay_duration for player {}",
+                    player.getName().getString());
+            callback.run();
+            return;
+        }
+
+        int delayDuration = delayDurationObj.intValue();
+
+        LOGGER.debug("Executing delay ability for player {} with {} tick delay",
+                player.getName().getString(), delayDuration);
+
+        if (delayDuration > 0) {
+            DelayAbilityHandler.scheduleDelayedExecution(player, delayDuration, callback);
+        } else {
+            callback.run();
+        }
     }
 }
+
 

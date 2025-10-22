@@ -24,6 +24,10 @@ public class Hero {
     public static class Ability {
         @SerializedName("ability_name")
         private String abilityName;
+        @SerializedName("ability_icon")
+        private String abilityIcon;
+        @SerializedName("ability_hud")
+        private String abilityHud;
         @SerializedName("ability_trigger")
         private AbilityTrigger abilityTrigger;
         private AbilityData ability;
@@ -31,6 +35,8 @@ public class Hero {
         private int abilityCooldown;
 
         public String getAbilityName() { return abilityName; }
+        public String getAbilityIcon() { return abilityIcon; }
+        public String getAbilityHud() { return abilityHud; }
         public AbilityTrigger getAbilityTrigger() { return abilityTrigger; }
         public AbilityData getAbility() { return ability; }
         public int getAbilityCooldown() { return abilityCooldown; }

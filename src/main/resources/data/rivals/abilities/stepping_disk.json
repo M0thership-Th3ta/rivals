@@ -3,6 +3,15 @@
   "ability_chain": [
     {
       "ability": {
+        "ability_type": "rivals:resource",
+        "ability_attributes": {
+          "resource_type": "charge",
+          "resource_amount": 2
+        }
+      }
+    },
+    {
+      "ability": {
         "ability_type": "rivals:cosmetic_effect",
         "ability_attributes": {
           "effect": "rivals:test_effect"
@@ -24,7 +33,8 @@
             "ability_type": "rivals:dash",
             "ability_attributes": {
               "dash_distance": 10.0,
-              "dash_type": "blink"
+              "dash_type": "blink",
+              "resource_cost": 1
             }
           }
         },

@@ -2,8 +2,7 @@ package net.anemoia.rivals.common.handlers;
 
 import net.anemoia.rivals.common.data.Hero;
 import net.anemoia.rivals.common.data.HeroDataManager;
-import net.anemoia.rivals.common.handlers.abilities.AbilityCooldown;
-import net.anemoia.rivals.common.handlers.abilities.CustomAbilityHandler;
+import net.anemoia.rivals.common.handlers.abilities.*;
 import net.anemoia.rivals.common.util.PlayerHeroUtil;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
@@ -24,7 +23,6 @@ public class AbilityTriggerHandler {
         Hero hero = HeroDataManager.getInstance().getHero(heroId);
         if (hero == null) {
             LOGGER.warn("Player {} has invalid hero {}", player.getName().getString(), heroId);
-            // Clear invalid hero reference
             PlayerHeroUtil.setCurrentHero(player, null);
             return;
         }
@@ -34,23 +32,30 @@ public class AbilityTriggerHandler {
             return;
         }
 
-        // Find abilities that match the key trigger
         for (Hero.Ability ability : hero.getAbilities()) {
             if (shouldTriggerAbility(ability, keyPressed)) {
-                LOGGER.info("Attempting to trigger ability {} for player {}",
-                        ability.getAbilityName(), player.getName().getString());
+                String abilityName = ability.getAbilityName();
 
-                // Check cooldown before executing
-                if (AbilityCooldown.isOnCooldown(player, ability.getAbilityName())) {
-                    AbilityCooldown.sendCooldownMessage(player, ability.getAbilityName());
+                // --- Move this check up so it applies to all abilities ---
+                if (AbilityExecutionState.isPlayerExecuting(player)) {
+                    LOGGER.debug("Player {} already has an ability executing, ignoring trigger for {}",
+                            player.getName().getString(), abilityName);
                     return;
                 }
 
-                // Execute the ability
+                // Charge/cooldown logic follows...
+                if (ResourceAbilityHandler.getMaxCharges(player, abilityName) > 0) {
+                    // Charge-based: only check charges
+                } else {
+                    if (AbilityCooldown.isOnCooldown(player, abilityName)) {
+                        AbilityCooldown.sendCooldownMessage(player, abilityName);
+                        return;
+                    }
+                }
+
                 boolean success = executeTriggeredAbility(player, ability);
 
-                // Set cooldown if ability executed successfully and has a cooldown
-                if (success && ability.getAbilityCooldown() > 0) {
+                if (success && ability.getAbilityCooldown() > 0 && ResourceAbilityHandler.getMaxCharges(player, abilityName) == 0) {
                     AbilityCooldown.setCooldown(player, ability.getAbilityName(), ability.getAbilityCooldown());
                     LOGGER.debug("Set cooldown for ability {} ({} ticks)",
                             ability.getAbilityName(), ability.getAbilityCooldown());
@@ -68,8 +73,53 @@ public class AbilityTriggerHandler {
 
     private static boolean executeTriggeredAbility(Player player, Hero.Ability ability) {
         String abilityType = ability.getAbility().getAbilityType();
+        String abilityName = ability.getAbilityName();
 
-        try {
+        // Charge-based abilities
+        if (ResourceAbilityHandler.getMaxCharges(player, abilityName) > 0) {
+            if (!ResourceAbilityHandler.hasCharges(player, abilityName)) {
+                ResourceAbilityHandler.sendNoChargesMessage(player, abilityName);
+                return false;
+            }
+            if ("rivals:custom_ability".equals(abilityType)) {
+                // Only check charges, let CustomAbilityHandler consume
+                String abilityPath = ability.getAbility().getAbilityPath();
+                if (abilityPath != null) {
+                    Object customAbilityData = AbilityReader.loadCustomAbility(abilityPath);
+                    if (customAbilityData != null) {
+                        CustomAbilityHandler.applyCustomAbility(player, ability, customAbilityData);
+                        return true;
+                    }
+                }
+            } else {
+                // For direct abilities, consume charge here
+                if (!ResourceAbilityHandler.consumeCharge(player, abilityName, ability.getAbilityCooldown())) {
+                    ResourceAbilityHandler.sendNoChargesMessage(player, abilityName);
+                    return false;
+                }
+                // Execute direct ability logic
+                switch (abilityType) {
+                    case "rivals:dash":
+                        DashAbilityHandler.handleDashAbility(player, ability);
+                        return true;
+                    case "rivals:flight":
+                        // Implement flight logic here
+                        return true;
+                    case "rivals:cosmetic_effect":
+                        CosmeticEffectAbilityHandler.handleCosmeticEffect(player, ability.getAbility().getAbilityAttributes());
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            return true;
+        } else {
+            // Non-charge abilities: check cooldown
+            if (AbilityCooldown.isOnCooldown(player, abilityName)) {
+                AbilityCooldown.sendCooldownMessage(player, abilityName);
+                return false;
+            }
+            boolean success = false;
             switch (abilityType) {
                 case "rivals:custom_ability":
                     String abilityPath = ability.getAbility().getAbilityPath();
@@ -77,22 +127,30 @@ public class AbilityTriggerHandler {
                         Object customAbilityData = AbilityReader.loadCustomAbility(abilityPath);
                         if (customAbilityData != null) {
                             CustomAbilityHandler.applyCustomAbility(player, ability, customAbilityData);
-                            return true;
+                            success = true;
                         }
                     }
                     break;
-                // Add other ability types as needed
+                case "rivals:dash":
+                    DashAbilityHandler.handleDashAbility(player, ability);
+                    success = true;
+                    break;
+                case "rivals:flight":
+                    // Implement flight logic here
+                    success = true;
+                    break;
+                case "rivals:cosmetic_effect":
+                    CosmeticEffectAbilityHandler.handleCosmeticEffect(player, ability.getAbility().getAbilityAttributes());
+                    success = true;
+                    break;
                 default:
-                    LOGGER.warn("Triggered ability type {} not yet implemented", abilityType);
                     return false;
             }
-        } catch (Exception e) {
-            LOGGER.error("Failed to execute ability {} for player {}: {}",
-                    ability.getAbilityName(), player.getName().getString(), e.getMessage(), e);
-            return false;
+            if (success && ability.getAbilityCooldown() > 0) {
+                AbilityCooldown.setCooldown(player, abilityName, ability.getAbilityCooldown());
+            }
+            return success;
         }
-
-        return false;
     }
 }
 
