@@ -13,6 +13,8 @@ public class Hero {
     @SerializedName("safe_fall_distance")
     private int safeFallDistance;
     private List<Ability> abilities;
+    @SerializedName("player_model")
+    private List<PlayerModel> playerModel;
 
     public String getName() { return name; }
     public int getColor() { return color; }
@@ -20,6 +22,20 @@ public class Hero {
     public int getDefense() { return defense; }
     public int getSafeFallDistance() { return safeFallDistance; }
     public List<Ability> getAbilities() { return abilities; }
+    public List<PlayerModel> getPlayerModel() { return playerModel; }
+
+    public static class PlayerModel {
+        @SerializedName("model_path")
+        private String modelPath;
+        @SerializedName("texture_path")
+        private String texturePath;
+        @SerializedName("animation_path")
+        private String animationPath;
+
+        public String getModelPath() { return modelPath; }
+        public String getTexturePath() { return texturePath; }
+        public String getAnimationPath() { return animationPath; }
+    }
 
     public static class Ability {
         @SerializedName("ability_name")

@@ -1,8 +1,11 @@
 package net.anemoia.rivals.common.capabilities;
 
+import net.anemoia.rivals.common.network.NetworkHandler;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -15,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class PlayerHeroDataCapability implements INBTSerializable<CompoundTag> {
@@ -23,6 +27,13 @@ public class PlayerHeroDataCapability implements INBTSerializable<CompoundTag> {
 
     private ResourceLocation currentHero;
     private Set<String> activeAbilities = new HashSet<>();
+
+    private Player owner;
+
+    public void setOwner(Player owner) {
+        this.owner = Objects.requireNonNull(owner);
+        LOGGER.info("PlayerHeroDataCapability owner set to: {} (serverSide={})", owner.getUUID(), owner.level() != null && !owner.level().isClientSide);
+    }
 
     public Set<String> getActiveAbilities() {
         return activeAbilities;
@@ -48,8 +59,30 @@ public class PlayerHeroDataCapability implements INBTSerializable<CompoundTag> {
     }
 
     public void setCurrentHero(ResourceLocation hero) {
-        LOGGER.debug("Setting current hero from {} to {}", this.currentHero, hero);
+        LOGGER.debug("setCurrentHero called: {} -> {} (owner present={}, ownerServerSide={})", this.currentHero, hero, owner != null, owner != null && owner.level() != null && !owner.level().isClientSide);
         this.currentHero = hero;
+
+        if (owner == null) {
+            LOGGER.warn("Not sending hero update because capability owner is null");
+            return;
+        }
+
+        if (owner.level() == null) {
+            LOGGER.warn("Not sending hero update because owner.level() is null for owner {}", owner.getUUID());
+            return;
+        }
+
+        if (owner.level().isClientSide) {
+            LOGGER.info("setCurrentHero running on client for owner {}, not sending S2C", owner.getUUID());
+            return;
+        }
+
+        if (owner instanceof ServerPlayer serverPlayer) {
+            LOGGER.info("Sending hero update for player {} -> {}", serverPlayer.getUUID(), hero);
+            NetworkHandler.sendHeroUpdate(serverPlayer, hero);
+        } else {
+            LOGGER.warn("Owner is not a ServerPlayer ({}) — cannot send hero update", owner.getClass().getName());
+        }
     }
 
     @Override
@@ -108,6 +141,17 @@ public class PlayerHeroDataCapability implements INBTSerializable<CompoundTag> {
         private static final Logger LOGGER = LoggerFactory.getLogger(Provider.class);
         private final PlayerHeroDataCapability data = new PlayerHeroDataCapability();
         private final LazyOptional<PlayerHeroDataCapability> optional = LazyOptional.of(() -> data);
+
+        public Provider() {}
+
+        public Provider(Player owner) {
+            setOwner(owner);
+        }
+
+        public void setOwner(Player owner) {
+            data.setOwner(owner);
+            LOGGER.debug("Provider set owner for capability to: {}", owner.getUUID());
+        }
 
         @Override
         public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {

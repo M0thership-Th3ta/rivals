@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "compatibilityLevel": "JAVA_17",
+  "package": "net.anemoia.rivals.mixin",
+  "refmap": "mixins.rivals.refmap.json",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "PlayerRendererMixin"
+  ],
+  "mixins": [
+    "TestMixin"
+  ]
+}

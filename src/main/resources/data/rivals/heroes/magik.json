@@ -4,6 +4,13 @@
   "health": 30,
   "defense": 2,
   "safe_fall_distance": 8,
+  "player_model": [
+    {
+      "model_path": "rivals:geo/magik.geo.json",
+      "texture_path": "rivals:textures/hero/magik.png",
+      "animation_path": "rivals:animations/heroes/magik/magik.animation.json"
+    }
+  ],
   "abilities": [
     {
       "ability_name": "Stepping Disk",

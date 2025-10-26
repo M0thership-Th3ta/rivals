@@ -6,6 +6,7 @@ import net.anemoia.rivals.common.commands.HeroCommand;
 import net.anemoia.rivals.common.data.HeroDataManager;
 import net.anemoia.rivals.common.network.NetworkHandler;
 import net.anemoia.rivals.core.registry.ModCreativeModeTabs;
+import net.anemoia.rivals.core.registry.ModEntities;
 import net.anemoia.rivals.core.registry.ModItems;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -21,11 +22,9 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/mods.toml file
 @Mod(value = Rivals.MOD_ID)
 @Mod.EventBusSubscriber(modid = Rivals.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
-public class Rivals
-{
+public class Rivals {
     public static final String MOD_ID = "rivals";
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -34,6 +33,7 @@ public class Rivals
 
         ModItems.register(modEventBus);
         ModCreativeModeTabs.register(modEventBus);
+        ModEntities.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
