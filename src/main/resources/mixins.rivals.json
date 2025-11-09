@@ -8,8 +8,5 @@
   },
   "client": [
     "PlayerRendererMixin"
-  ],
-  "mixins": [
-    "TestMixin"
   ]
 }
